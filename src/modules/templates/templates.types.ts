@@ -33,6 +33,11 @@ export interface TemplateGoal {
   description?: string;
   category?: string;
   color: string;
+  // Explicit target for the goal's progress meter, in hours. If omitted the
+  // service derives a weekly estimate from schedule block coverage, but for
+  // multi-month sized goals (e.g. "300 LeetCode problems in 4 months") set
+  // this directly so the meter is calibrated.
+  targetHours?: number;
 }
 
 export interface TemplateTask {

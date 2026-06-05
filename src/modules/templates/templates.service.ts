@@ -47,15 +47,17 @@ export class TemplatesService {
       let tasksCreated = 0;
 
       if (opts.goals && template.goals?.length) {
-        // Estimate targetHours per goal from the schedule block coverage so
-        // the goal's progress meter is meaningful from day one. If the
-        // template has no schedule, fall back to 0.
+        // The template can pin targetHours explicitly per goal (preferred for
+        // multi-month sized goals like "300 LeetCode in 4 months"). When it
+        // does not, derive a weekly estimate from schedule block coverage so
+        // the meter is at least non-zero from day one.
         const targetHoursByRef = this.computeTargetHoursByRef(template);
 
         // Use the goal's order in the template as the initial `order` so the
         // goals page shows them in the curator's intended sequence.
         for (let i = 0; i < template.goals.length; i++) {
           const g = template.goals[i];
+          const computed = targetHoursByRef.get(g.ref) ?? 0;
           const created = await tx.goal.create({
             data: {
               userId,
@@ -64,7 +66,7 @@ export class TemplatesService {
               category: g.category ?? null,
               color: g.color,
               order: i,
-              targetHours: targetHoursByRef.get(g.ref) ?? 0,
+              targetHours: g.targetHours ?? computed,
             },
             select: { id: true },
           });
