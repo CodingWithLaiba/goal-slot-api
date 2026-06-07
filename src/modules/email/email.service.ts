@@ -15,6 +15,20 @@ export class EmailService {
     if (!local || !domain) return "***";
     return `${local.slice(0, 2)}***@${domain}`;
   }
+
+  /** Resend requires `email@domain.com` or `Name <email@domain.com>`. */
+  private normalizeFromEmail(raw: string): string {
+    const trimmed = raw.trim();
+    if (/^[^<]*<[^>]+>$/.test(trimmed)) {
+      return trimmed;
+    }
+    const match = trimmed.match(/^(.+?)\s+([^\s@]+@[^\s@]+\.[^\s@]+)$/);
+    if (match) {
+      return `${match[1]} <${match[2]}>`;
+    }
+    return trimmed;
+  }
+
   private resend: Resend;
   private onboardingEmail: string;
   private notificationEmail: string;
@@ -24,11 +38,15 @@ export class EmailService {
     this.resend = new Resend(
       this.configService.getOrThrow<string>("RESEND_API_KEY"),
     );
-    this.appUrl = this.configService.getOrThrow<string>("APP_URL");
-    this.onboardingEmail =
-      this.configService.getOrThrow<string>("ONBOARDING_EMAIL");
-    this.notificationEmail =
-      this.configService.getOrThrow<string>("NOTIFICATION_EMAIL");
+    this.appUrl = this.configService
+      .getOrThrow<string>("APP_URL")
+      .replace(/\/+$/, "");
+    this.onboardingEmail = this.normalizeFromEmail(
+      this.configService.getOrThrow<string>("ONBOARDING_EMAIL"),
+    );
+    this.notificationEmail = this.normalizeFromEmail(
+      this.configService.getOrThrow<string>("NOTIFICATION_EMAIL"),
+    );
   }
 
   async sendShareInvitation(params: {
@@ -248,7 +266,7 @@ Happy focusing! 🎯
     inviterEmail: string;
     whiteboardTitle: string;
     whiteboardId: string;
-    isExistingUser: boolean;
+    isExistingUser: boolean
   }) {
     const {
       toEmail,
@@ -262,43 +280,42 @@ Happy focusing! 🎯
     const safeTitle = (whiteboardTitle || "Untitled").replace(/</g, "&lt;");
 
     const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <style>
-          body { font-family: 'Arial', sans-serif; line-height: 1.6; color: #1a1a1a; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #FFD700; padding: 20px; border: 3px solid #1a1a1a; margin-bottom: 20px; }
-          .header h1 { margin: 0; font-size: 24px; text-transform: uppercase; }
-          .content { background: #fff; padding: 20px; border: 3px solid #1a1a1a; }
-          .button { display: inline-block; background: #FFD700; color: #1a1a1a; padding: 12px 24px; text-decoration: none; font-weight: bold; text-transform: uppercase; border: 3px solid #1a1a1a; margin: 20px 0; }
-          .board-title { background: #fafafa; border: 2px solid #1a1a1a; padding: 12px; font-weight: bold; margin: 16px 0; }
-          .footer { margin-top: 20px; font-size: 12px; color: #666; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header"><h1>Goal Slot</h1></div>
-          <div class="content">
-            <h2>A whiteboard has been shared with you</h2>
-            <p><strong>${inviterName}</strong> (${inviterEmail}) shared a whiteboard with you on Goal Slot.</p>
-            <div class="board-title">${safeTitle}</div>
-            <p>${
-              isExistingUser
-                ? "Open it from your Shared with me section in Whiteboards, or click below."
-                : "You will need to sign up with this email address to view it. Sign up is quick and free."
-            }</p>
-            <a href="${viewLink}" class="button">${isExistingUser ? "Open the whiteboard" : "Sign up and view"}</a>
-            <p style="font-size: 12px; color: #666;">If the button does not work, copy and paste this URL: ${viewLink}</p>
-            <div class="footer">
-              <p>You received this because someone shared a Goal Slot whiteboard with you. If this looks wrong, you can safely ignore this email.</p>
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body { font-family: 'Arial', sans-serif; line-height: 1.6; color: #1a1a1a; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: #FFD700; padding: 20px; border: 3px solid #1a1a1a; margin-bottom: 20px; }
+            .header h1 { margin: 0; font-size: 24px; text-transform: uppercase; }
+            .content { background: #fff; padding: 20px; border: 3px solid #1a1a1a; }
+            .button { display: inline-block; background: #FFD700; color: #1a1a1a; padding: 12px 24px; text-decoration: none; font-weight: bold; text-transform: uppercase; border: 3px solid #1a1a1a; margin: 20px 0; }
+            .whiteboard-title { background: #fafafa; border: 2px solid #1a1a1a; padding: 12px; font-weight: bold; margin: 16px 0; }
+            .footer { margin-top: 20px; font-size: 12px; color: #666; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header"><h1>Goal Slot</h1></div>
+            <div class="content">
+              <h2>A whiteboard has been shared with you</h2>
+              <p><strong>${inviterName}</strong> (${inviterEmail}) shared a whiteboard with you on Goal Slot.</p>
+              <div class="whiteboard-title">${safeTitle}</div>
+              <p>${
+                isExistingUser
+                  ? "Open it from your Shared with me section in Whiteboards, or click below."
+                  : "You will need to sign up with this email address to view it. Sign up is quick and free."
+              }</p>
+              <a href="${viewLink}" class="button">${isExistingUser ? "Open the whiteboard" : "Sign up and view"}</a>
+              <p style="font-size: 12px; color: #666;">If the button does not work, copy and paste this URL: ${viewLink}</p>
+              <div class="footer">
+                <p>You received this because someone shared a Goal Slot whiteboard with you. If this looks wrong, you can safely ignore this email.</p>
+              </div>
             </div>
           </div>
-        </div>
-      </body>
-    </html>
-  `;
-
+        </body>
+      </html>
+    `;
     const text = `${inviterName} (${inviterEmail}) shared a Goal Slot whiteboard with you: "${safeTitle}".\nOpen it: ${viewLink}`;
 
     const result = await this.resend.emails.send({
