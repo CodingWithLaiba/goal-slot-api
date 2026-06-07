@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   BadRequestException,
   PayloadTooLargeException,
+  Logger,
 } from "@nestjs/common";
 import { randomBytes } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -15,6 +16,8 @@ import {
 
 @Injectable()
 export class WhiteboardsService {
+  private readonly logger = new Logger(WhiteboardsService.name);
+
   constructor(
     private prisma: PrismaService,
     private emailService: EmailService,
@@ -238,7 +241,7 @@ export class WhiteboardsService {
       });
       await this.emailService.sendWhiteboardShareInvitation({
         toEmail: email,
-        inviterName: owner.name,
+        inviterName: owner.name || owner.email,
         inviterEmail: owner.email,
         whiteboardTitle: whiteboard?.title || "Untitled",
         whiteboardId,
@@ -247,7 +250,9 @@ export class WhiteboardsService {
       emailSent = true;
     } catch (err) {
       emailError = err instanceof Error ? err.message : "Unknown error";
-      // swallow: share record still works in-app
+      this.logger.error(
+        `Whiteboard share email failed for ${email}: ${emailError}`,
+      );
     }
 
     return { ...share, emailSent, emailError };
